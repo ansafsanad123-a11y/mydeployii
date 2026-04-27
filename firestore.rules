@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        incoming().uid == request.auth.uid &&
+        incoming().keys().hasAll(['uid', 'email']) &&
+        incoming().uid is string &&
+        incoming().email is string;
+      allow update: if isOwner(userId) && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['githubAccessToken', 'email']);
+    }
+
+    // Projects
+    match /projects/{projectId} {
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && 
+        incoming().ownerId == request.auth.uid &&
+        isValidId(projectId) &&
+        incoming().keys().hasAll(['id', 'ownerId', 'name', 'repoUrl']) &&
+        incoming().name is string && incoming().name.size() <= 100;
+      allow update: if isSignedIn() && 
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasAny(['status', 'environmentVariables', 'domain', 'updatedAt']);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      // Deployments
+      match /deployments/{deploymentId} {
+        allow list: if isSignedIn() && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        allow get: if isSignedIn() && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        allow create: if isSignedIn() && 
+          get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid &&
+          isValidId(deploymentId);
+      }
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user preferences and integration statuses.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "githubAccessToken": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Project": {
+      "title": "Deployment Project",
+      "description": "Represents a single application or repo being deployed.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "repoUrl": { "type": "string" },
+        "branch": { "type": "string" },
+        "environmentVariables": { "type": "object" },
+        "domain": { "type": "string" },
+        "status": { "type": "string", "enum": ["idle", "building", "live", "failed"] },
+        "framework": { "type": "string", "enum": ["python", "typescript", "html", "javascript"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "name", "repoUrl"]
+    },
+    "Deployment": {
+      "title": "Deployment Log",
+      "description": "Record of a specific deployment attempt.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "step": { "type": "string", "enum": ["cloning", "auditing", "building", "live"] },
+        "logs": { "type": "string" },
+        "aiSuggestions": { "type": "string" },
+        "success": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "projectId", "step"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and settings."
+    },
+    "projects/{projectId}": {
+      "schema": "Project",
+      "description": "User projects."
+    },
+    "projects/{projectId}/deployments/{deploymentId}": {
+      "schema": "Deployment",
+      "description": "Historical deployments for a project."
+    }
+  }
+}
